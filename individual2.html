@@ -385,6 +385,20 @@ library(dplyr)</code></pre>
 <pre><code>## The following objects are masked from &#39;package:base&#39;:
 ## 
 ##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre><code>## -- Attaching packages --------------------------------------- tidyverse 1.3.0 --</code></pre>
+<pre><code>## v tibble  3.0.3     v purrr   0.3.4
+## v tidyr   1.1.2     v stringr 1.4.0
+## v readr   1.4.0     v forcats 0.5.0</code></pre>
+<pre><code>## Warning: package &#39;stringr&#39; was built under R version 4.0.3</code></pre>
+<pre><code>## -- Conflicts ------------------------------------------ tidyverse_conflicts() --
+## x lubridate::as.difftime() masks base::as.difftime()
+## x lubridate::date()        masks base::date()
+## x dplyr::filter()          masks stats::filter()
+## x lubridate::intersect()   masks base::intersect()
+## x dplyr::lag()             masks stats::lag()
+## x lubridate::setdiff()     masks base::setdiff()
+## x lubridate::union()       masks base::union()</code></pre>
 <pre class="r"><code>accident &lt;- read.csv(&quot;https://raw.githubusercontent.com/xdaiISU/ds202materials/master/hwlabs/fars2017/accident.csv&quot;, stringsAsFactors = FALSE)
 person &lt;- read.csv(&quot;https://raw.githubusercontent.com/xdaiISU/ds202materials/master/hwlabs/fars2017/person.csv&quot;, stringsAsFactors = FALSE)</code></pre>
 <p>1.) Are there some days of the week where more accidents happen than the others (see FARS manual, use variable DAY_WEEK)? DAY_WEEK: records the day of the week on which the crash occurred.</p>
@@ -454,19 +468,34 @@ head(per2)</code></pre>
 ## 5        0
 ## 6        0</code></pre>
 <p>3.) Create a data frame containing the most dangerous vehicle make in each state. The number of persons fatally hit in the vehicle make is used to assess the (non-)safety of a make. Make sure to handle the missing values appropriately. (look up variable MAKE)</p>
-<pre class="r"><code>danger &lt;- per2 %&gt;% group_by(STATE, MAKE) %&gt;% summarize(STATE = sum(STATE)) %&gt;% group_by(STATE) %&gt;% filter(MAKE == max(MAKE))</code></pre>
+<pre class="r"><code># danger &lt;- per2 %&gt;% group_by(STATE, MAKE) %&gt;% summarize(STATE = sum(STATE)) %&gt;% group_by(STATE) %&gt;% filter(MAKE == max(MAKE)) %&gt;% filter(STATE &lt; 57)
+# head(danger)
+
+dangerous &lt;- per2 %&gt;%
+  drop_na(MAKE) %&gt;%
+  group_by(STATE, MAKE) %&gt;%
+  summarise(fatal_acc = n()) %&gt;%
+  group_by(STATE) %&gt;%
+  filter(fatal_acc == max(fatal_acc))</code></pre>
 <pre><code>## `summarise()` regrouping output by &#39;STATE&#39; (override with `.groups` argument)</code></pre>
-<pre class="r"><code>head(danger)</code></pre>
-<pre><code>## # A tibble: 6 x 2
+<pre class="r"><code>head(dangerous)</code></pre>
+<pre><code>## # A tibble: 6 x 3
 ## # Groups:   STATE [6]
-##   STATE  MAKE
-##   &lt;int&gt; &lt;int&gt;
-## 1    14    53
-## 2     3    86
-## 3     7    98
-## 4     1    99
-## 5     2    71
-## 6   284    49</code></pre>
+##   STATE  MAKE fatal_acc
+##   &lt;int&gt; &lt;int&gt;     &lt;int&gt;
+## 1     1    12       138
+## 2     2    12         9
+## 3     4    20        88
+## 4     5    20        88
+## 5     6    49       351
+## 6     8    12        63</code></pre>
+<p>4.Create a map, and label each state with the most dangerous vehicle. Discuss the definition of the most dangerous vehicle, and what you find from the map. (Hint: Read the description for the STATE and COUNTY columns in the FARS manual. The state &amp; county codes are Geographic Locator Codes (GLCs) from the General Services Administration’s (GSA) publication. Use readxl::read_xlsx to read in the GLCs.)</p>
+<pre class="r"><code># library(viridisLite)
+# library(scales)
+# Lon_Lat &lt;- accident %&gt;% select(LONGITUD, LATITUDE, STATE, COUNTY)%&gt;% filter(STATE &lt; 57)
+# map &lt;- left_join(Lon_Lat, danger, by = &#39;STATE&#39;)
+# 
+# ggplot()</code></pre>
 
 
 
