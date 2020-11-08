@@ -8,4 +8,113 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+## Import
+```{r}
+library(lubridate)
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(maps)
+accident <- read.csv("https://raw.githubusercontent.com/xdaiISU/ds202materials/master/hwlabs/fars2017/accident.csv", stringsAsFactors = FALSE)
+person <- read.csv("https://raw.githubusercontent.com/xdaiISU/ds202materials/master/hwlabs/fars2017/person.csv", stringsAsFactors = FALSE)
+```
 
+## 5. 
+Join the accident and person table (work out which variable(s) to use)
+```{r}
+joined <- inner_join(person, accident, by="ST_CASE")
+```
+
+  The given documentation describes that ST_CASE is the shared variable for merging between accident and person.
+  
+  
+## 6. 
+Tally the number of accidents by day of the week (DAY_WEEK), hour of the day (HOUR) and gender (SEX). Visualize the results.
+```{r}
+withAvgSex <- joined %>%
+  filter(SEX == 1 || SEX == 2) %>%
+  group_by(ST_CASE) %>%
+  summarise(avgSex = mean(SEX))
+withAvgSex$sexesExplained <- ifelse(withAvgSex$avgSex == 1, 'Men Only', ifelse(withAvgSex$avgSex == 2, 'Women Only', 'Men and Women'))
+
+accident <- withAvgSex %>%
+  select(ST_CASE, sexesExplained) %>%
+  inner_join( accident, by='ST_CASE')
+
+grouped <- accident %>%
+  filter(HOUR <= 24) %>%
+  filter(DAY_WEEK != 9) %>%
+  group_by(sexesExplained, HOUR, DAY_WEEK) %>%
+  summarise(numAccidents = n()) %>%
+  arrange(desc(numAccidents))
+head(grouped, 10)
+```
+
+  From this table we begin to understand that the weekends have the most accidents, especially later at night.
+  
+```{r}
+ggplot(grouped,aes(x=HOUR, y=numAccidents)) + geom_bar(stat='identity') + facet_grid(sexesExplained~DAY_WEEK)+xlab("Number of accidents")+ylab("Hour of day")
+```
+
+  This graph shows several factors off the count of accidents. First off, we see the number of accidents thats participants are only female is significantly smaller than the number of accidents with only men. As expected, the number of accidents involving Men and Women is the most. This graph also shows the trends of the weekends and the night having more accidents.
+  
+## 7. 
+Now plot a choropleth map of the number of deaths on a county level.
+```{r}
+deathCounty <- person %>%
+  filter(INJ_SEV == 4) %>%
+  group_by(STATE, COUNTY) %>%
+  summarise(numDeaths = n())
+counties <- map_data("county")
+countyStateCodes <- readr::read_csv('statesCounties.csv')
+countyStateCodes$StateName <- tolower(countyStateCodes$StateName)
+countyStateCodes$CountyName <- tolower(countyStateCodes$CountyName)
+countyStateCodes$StateCode <- as.numeric(countyStateCodes$StateCode)
+countyStateCodes$CountyCode <- as.numeric(countyStateCodes$CountyCode)
+deathCounty$STATE <- as.numeric(deathCounty$STATE)
+deathCounty$COUNTY <- as.numeric(deathCounty$COUNTY)
+withNames <- right_join(deathCounty, countyStateCodes, by = c("STATE" = "StateCode", "COUNTY" = "CountyCode"))
+withNames$numDeaths <- replace_na(withNames$numDeaths, 0)
+ allTogether <- inner_join(withNames, counties, by = c("StateName" = "region", "CountyName" = "subregion"))
+ allTogether %>% ggplot(aes(x=long, y=lat))+geom_polygon(aes(group=group, fill=numDeaths))+scale_fill_distiller(name="Number of Deaths per county", palette = "Set3")
+```
+
+  This map shows two main hotspots of fatal accidents, California and Florida. Other metropolitan areas register as dangerous as well, but not as bad as the mentioned hot spots.
+  
+## 8. 
+Is summer or winter more dangerous? Does this depend on states? Explore and explain.
+```{r}
+summer <- c(5,6,7,8)
+winter <- c(12, 1, 2, 3)
+accident$sumWint <- ifelse(accident$MONTH %in% summer, 'Summer', ifelse(accident$MONTH %in% winter, 'Winter', 'Neither') )
+accident %>% 
+  filter(sumWint == 'Summer' | sumWint == 'Winter') %>%
+  group_by(sumWint) %>%
+  summarise(numAcc = n()) %>%
+  arrange(desc(numAcc)) %>%
+  head()
+```
+
+  This shows that in the dataset there are more accidents in the Summer overall.
+  
+```{r}
+accident <- countyStateCodes %>%
+  select(StateCode, StateName) %>%
+  right_join(accident, by = c("StateCode" = "STATE"))
+byState <- accident %>% 
+  filter(sumWint == 'Summer' | sumWint == 'Winter') %>%
+  group_by(sumWint, StateName) %>%
+  summarise(numAcc = n()) %>%
+  arrange(desc(numAcc))
+head(byState, 10)
+```
+
+  The biggest trend this shows is how many accidents Texas has a state, most likely due to its large land mass. We also start to get an idea that Summer and Winter accident are pretty equal between states.
+  
+  
+```{r}
+options(scipen=10000)
+ggplot(byState, aes(fill=sumWint, x=StateName, y=numAcc))+geom_bar(position='dodge', stat='identity')+theme(axis.text.x = element_text(angle = 90))+labs(fill = "Season")+xlab("State Name")+ylab("Number of Accidents")
+```
+
+  This graph shows it does vary state by state on if Summer or Winter is more dangerous, however it is more common that Summer has more accidents. 
