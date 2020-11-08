@@ -51,8 +51,9 @@ library(scales)
 Lon_Lat <- accident %>% select(LONGITUD, LATITUDE, STATE, COUNTY)%>% filter(STATE < 57)
 map <- left_join(Lon_Lat, danger, by = 'STATE')
 
-ggplot()
- 
+State <- readxl::read_xlsx("FRPP_GLC_-_United_StatesSep292020.xlsx")
+State2 <- State %>% select(c(`State Name`))
+Terr <- readxl::read_xlsx("FRPP_GLC_US_TerritoriesSept152020(1).xlsx")
 
 
 
